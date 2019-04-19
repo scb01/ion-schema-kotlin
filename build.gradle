@@ -18,7 +18,7 @@ version = "0.7.0"
 repositories { mavenCentral() }
 
 dependencies {
-  compile "software.amazon.ion:ion-java:[1.2,)"
+  compile "software.amazon.ion:ion-java:[1.4,)"
   compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
   testCompile "org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version"
 }
