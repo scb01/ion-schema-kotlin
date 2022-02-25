@@ -15,16 +15,16 @@
 
 package com.amazon.ionschema
 
+import com.amazon.ion.IonString
+import com.amazon.ion.IonValue
+import com.amazon.ion.system.IonSystemBuilder
 import org.junit.runner.Description
 import org.junit.runner.Runner
 import org.junit.runner.notification.Failure
 import org.junit.runner.notification.RunNotifier
-import com.amazon.ion.IonString
-import com.amazon.ion.IonValue
-import com.amazon.ion.system.IonSystemBuilder
 
 abstract class AbstractTestRunner(
-        private val testClass: Class<Any>
+    private val testClass: Class<Any>
 ) : Runner() {
 
     internal val ION = IonSystemBuilder.standard().build()
@@ -34,18 +34,19 @@ abstract class AbstractTestRunner(
     }
 
     internal fun runTest(
-            notifier: RunNotifier,
-            testName: String,
-            ion: IonValue,
-            test: () -> Unit) {
+        notifier: RunNotifier,
+        testName: String,
+        ion: IonValue,
+        test: () -> Unit
+    ) {
 
-        val desc = Description.createTestDescription(testName, ion.toString())
+        val desc = Description.createTestDescription("${testClass.simpleName}: $testName", ion.toString())
         try {
             notifier.fireTestStarted(desc)
             test()
         } catch (ae: AssertionError) {
             notifier.fireTestFailure(Failure(desc, ae))
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             notifier.fireTestFailure(Failure(desc, e))
         } finally {
             notifier.fireTestFinished(desc)
@@ -59,4 +60,3 @@ abstract class AbstractTestRunner(
             ion
         }
 }
-

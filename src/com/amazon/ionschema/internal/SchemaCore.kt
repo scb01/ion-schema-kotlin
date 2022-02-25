@@ -15,7 +15,9 @@
 
 package com.amazon.ionschema.internal
 
-import com.amazon.ion.*
+import com.amazon.ion.IonDatagram
+import com.amazon.ion.IonStruct
+import com.amazon.ion.IonSymbol
 import com.amazon.ionschema.Import
 import com.amazon.ionschema.IonSchemaSystem
 import com.amazon.ionschema.Schema
@@ -27,7 +29,7 @@ import com.amazon.ionschema.internal.util.markReadOnly
  * defined by the Ion Schema Specification.
  */
 internal class SchemaCore(
-        private val schemaSystem: IonSchemaSystem
+    private val schemaSystem: IonSchemaSystem
 ) : Schema {
 
     private val typeMap: Map<String, Type>
@@ -35,7 +37,7 @@ internal class SchemaCore(
     override val isl: IonDatagram
 
     init {
-        val ION = (schemaSystem as IonSchemaSystemImpl).getIonSystem()
+        val ION = schemaSystem.ionSystem
         typeMap = ION.iterate(CORE_TYPES + ION_TYPES)
             .asSequence()
             .map { (it as IonStruct).first() as IonSymbol }
@@ -67,6 +69,10 @@ internal class SchemaCore(
 
     override fun getTypes() = typeMap.values.iterator()
 
+    override fun getDeclaredType(name: String): Type? = getType(name)
+
+    override fun getDeclaredTypes(): Iterator<Type> = getTypes()
+
     override fun getSchemaSystem() = schemaSystem
 
     override fun newType(isl: String) = throw UnsupportedOperationException()
@@ -74,7 +80,8 @@ internal class SchemaCore(
     override fun plusType(type: Type) = throw UnsupportedOperationException()
 }
 
-private const val CORE_TYPES = """
+private const val CORE_TYPES =
+    """
         { type: blob }
         { type: bool }
         { type: clob }
@@ -90,7 +97,8 @@ private const val CORE_TYPES = """
         { type: struct }
     """
 
-private const val ION_TYPES = """
+private const val ION_TYPES =
+    """
         { type: ${'$'}blob }
         { type: ${'$'}bool }
         { type: ${'$'}clob }
@@ -106,7 +114,8 @@ private const val ION_TYPES = """
         { type: ${'$'}struct }
     """
 
-private const val ADDITIONAL_TYPE_DEFS = """
+private const val ADDITIONAL_TYPE_DEFS =
+    """
         { lob:    type::{ one_of: [ blob, clob ] } }
 
         { number: type::{ one_of: [ decimal, float, int ] } }
@@ -141,4 +150,3 @@ private const val ADDITIONAL_TYPE_DEFS = """
 
         { nothing:        type::{ not: ${'$'}any } }
     """
-

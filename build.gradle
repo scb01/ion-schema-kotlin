@@ -13,16 +13,29 @@
  * permissions and limitations under the License.
  */
 
+buildscript {
+  repositories {
+    maven {
+      url "https://plugins.gradle.org/m2/"
+    }
+  }
+  dependencies {
+    classpath "org.jlleitschuh.gradle:ktlint-gradle:10.0.0"
+    classpath "org.jetbrains.dokka:dokka-gradle-plugin:1.4.32"
+  }
+}
+
 plugins {
-  id "org.jetbrains.kotlin.jvm" version "1.3.21"
-  id "org.jetbrains.dokka" version "0.9.18"
+  id "org.jetbrains.kotlin.jvm" version "1.4.0"
+  id "org.jetbrains.dokka" version "1.4.32"
   id "maven-publish"
   id "signing"
+  id "org.jlleitschuh.gradle.ktlint" version "10.0.0"
 }
 
 group = "com.amazon.ion"
-version = "1.2.0-SNAPSHOT"
-ext.kotlin_version = "[1.3,)"
+version = "1.2.2-SNAPSHOT"
+ext.kotlin_version = "[1.3,1.6["
 
 repositories {
   mavenCentral()
@@ -32,6 +45,8 @@ repositories {
 dependencies {
   api "com.amazon.ion:ion-java:[1.4,)"
   implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+  // We're running tests with an old version of kotlin Stdlib to ensure the library is compatible for consumers still using Kotlin 1.3.
+  testImplementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.3.72"
   testImplementation "org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version"
 }
 
@@ -40,19 +55,49 @@ sourceSets {
   test.kotlin.srcDirs = ["test"]
 }
 
-dokka {
-  outputFormat = "html"
-  outputDirectory = "$buildDir/javadoc"
-  includes = ["src/com/amazon/ionschema/module.md"]
+processResources {
+  from('ion-schema-schemas/isl/') {
+    into 'ion-schema-schemas/isl/'
+  }
+  from('ion-schema-schemas/json/') {
+    into 'ion-schema-schemas/json/'
+  }
+}
+
+compileKotlin{
+  kotlinOptions.apiVersion = "1.3"
+  kotlinOptions.languageVersion = "1.4" // Can be read by 1.3 compiler, so consumers on kotlin 1.3 are still supported.
+}
+compileTestKotlin {
+  kotlinOptions.apiVersion = "1.3"
+  kotlinOptions.languageVersion = "1.4"
+}
+
+ktlint {
+  outputToConsole = true
+}
+
+dokkaJavadoc.configure {
+  dokkaSourceSets {
+    named("main") {
+      includes.from("src/com/amazon/ionschema/module.md")
+      sourceLink {
+        // URL showing where the source code can be accessed through the web browser
+        remoteUrl.set(java.net.URL("https://github.com/amzn/ion-schema-kotlin/blob/master/src"))
+        // Suffix which is used to append the line number to the URL. Use #L for GitHub
+        remoteLineSuffix.set("#L")
+      }
+    }
+  }
 }
 
 task sourcesJar(type: Jar) {
+  classifier 'sources'
   from "src"
-  classifier = "sources"
 }
-task javadocJar(type: Jar) {
-  from dokka
-  classifier = "javadoc"
+task javadocJar(type: Jar, dependsOn: dokkaJavadoc) {
+  classifier 'javadoc'
+  from dokkaJavadoc.outputDirectory
 }
 publishing {
   publications {

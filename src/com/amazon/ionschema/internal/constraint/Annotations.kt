@@ -19,8 +19,8 @@ import com.amazon.ion.IonList
 import com.amazon.ion.IonSymbol
 import com.amazon.ion.IonValue
 import com.amazon.ionschema.InvalidSchemaException
-import com.amazon.ionschema.Violations
 import com.amazon.ionschema.Violation
+import com.amazon.ionschema.Violations
 import com.amazon.ionschema.internal.Constraint
 import com.amazon.ionschema.internal.util.IntRange
 import com.amazon.ionschema.internal.util.withoutTypeAnnotations
@@ -33,8 +33,8 @@ import com.amazon.ionschema.internal.util.withoutTypeAnnotations
  * @see https://amzn.github.io/ion-schema/docs/spec.html#annotations
  */
 internal class Annotations private constructor(
-        ion: IonValue,
-        private val delegate: Constraint
+    ion: IonValue,
+    private val delegate: Constraint
 ) : ConstraintBase(ion), Constraint by delegate {
 
     constructor(ion: IonValue) : this(ion, delegate(ion))
@@ -49,10 +49,10 @@ internal class Annotations private constructor(
                 Annotation(it as IonSymbol, requiredByDefault)
             }
             return if (ion.hasTypeAnnotation("ordered")) {
-                    OrderedAnnotations(ion, annotations)
-                } else {
-                    UnorderedAnnotations(ion, annotations)
-                }
+                OrderedAnnotations(ion, annotations)
+            } else {
+                UnorderedAnnotations(ion, annotations)
+            }
         }
     }
 
@@ -63,8 +63,8 @@ internal class Annotations private constructor(
  * Ordered implementation of the annotations constraint, backed by a [StateMachine].
  */
 internal class OrderedAnnotations(
-        ion: IonValue,
-        private val annotations: List<Annotation>
+    ion: IonValue,
+    private val annotations: List<Annotation>
 ) : ConstraintBase(ion) {
 
     private val ION = ion.system
@@ -72,7 +72,9 @@ internal class OrderedAnnotations(
     private val stateMachine: StateMachine
 
     init {
-        val stateMachineBuilder = StateMachineBuilder().withOpenContent()
+        val stateMachineBuilder = StateMachineBuilder().apply {
+            if (!ion.hasTypeAnnotation("closed")) withOpenContent()
+        }
         var state: State? = null
         (ion as IonList).forEachIndexed { idx, it ->
             val newState = State(
@@ -102,9 +104,11 @@ internal class OrderedAnnotations(
  * Unordered implementation of the annotations constraint.
  */
 internal class UnorderedAnnotations(
-        ion: IonValue,
-        private val annotations: List<Annotation>
+    ion: IonValue,
+    private val annotations: List<Annotation>
 ) : ConstraintBase(ion) {
+
+    private val closedAnnotationStrings: List<String>? = if (ion.hasTypeAnnotation("closed")) (ion as IonList).map { (it as IonSymbol).stringValue() } else null
 
     override fun validate(value: IonValue, issues: Violations) {
         val missingAnnotations = mutableListOf<Annotation>()
@@ -115,15 +119,25 @@ internal class UnorderedAnnotations(
         }
 
         if (missingAnnotations.size > 0) {
-            issues.add(Violation(ion, "missing_annotation",
-                    "missing annotation(s): " + missingAnnotations.joinToString { it.text }))
+            issues.add(
+                Violation(
+                    ion, "missing_annotation",
+                    "missing annotation(s): " + missingAnnotations.joinToString { it.text }
+                )
+            )
+        }
+
+        closedAnnotationStrings?.let {
+            if (!it.containsAll(value.typeAnnotations.toList())) {
+                issues.add(Violation(ion, "unexpected_annotation", "found one or more unexpected annotations"))
+            }
         }
     }
 }
 
 internal class Annotation(
-        ion: IonSymbol,
-        requiredByDefault: Boolean
+    ion: IonSymbol,
+    requiredByDefault: Boolean
 ) {
     val text = ion.stringValue()
 
@@ -133,4 +147,3 @@ internal class Annotation(
         else -> requiredByDefault
     }
 }
-
